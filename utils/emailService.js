@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 
-// Create a transporter
+
 const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com', // Replace with the actual SMTP host if needed
     port: 465, // Use port 465 for SSL
@@ -13,14 +13,11 @@ const transporter = nodemailer.createTransport({
     greetingTimeout: 30000, // 30 seconds timeout
 });
 
-// Function to send an email
 const sendEmail = async (to, subject, text, html) => {
     try {
-        // Debugging: Log the "to" field to ensure it's defined
-        console.log("sendEmail called with:", { to, subject, text, html });
-
+       
         if (!to) {
-            throw new Error("No recipients defined"); // Custom error if "to" is invalid
+            throw new Error("No recipients defined");
         }
 
         const info = await transporter.sendMail({

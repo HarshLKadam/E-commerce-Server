@@ -406,10 +406,9 @@ const removeImageFromCloudinary = async (req, res) => {
 
 const updateUserDetailsController = async (req, res) => {
     try {
-        const userId = req.userId; // Extracting the user's ID
+        const userId = req.userId;
         const { name, email, mobile, password } = req.body;
 
-        // Step 1: Verify the user exists
         const userExist = await User.findById(userId);
         if (!userExist) {
             return res.status(404).json({
@@ -419,7 +418,6 @@ const updateUserDetailsController = async (req, res) => {
             });
         }
 
-        // Step 2: Check if the email is already in use (if email is being updated)
         if (email && email !== userExist.email) {
             const emailExists = await User.findOne({ email });
             if (emailExists) {
@@ -431,22 +429,22 @@ const updateUserDetailsController = async (req, res) => {
             }
         }
 
-        // Step 3: Hash the password if provided
-        let hashedPassword = userExist.password; // Default to the existing password
+
+        let hashedPassword = userExist.password;
         if (password) {
             const salt = await bcryptjs.genSalt(10);
             hashedPassword = await bcryptjs.hash(password, salt);
         }
 
-        // Step 4: Generate OTP if email is being changed
+
         let verifyCode = null;
         let otpExpiresIn = null;
         if (email && email !== userExist.email) {
             verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
-            otpExpiresIn = Date.now() + 600000; // OTP valid for 10 minutes
+            otpExpiresIn = Date.now() + 600000;
         }
 
-        // Step 5: Update the user in the database
+
         const updatedUser = await User.findByIdAndUpdate(
             userId,
             {
@@ -469,7 +467,6 @@ const updateUserDetailsController = async (req, res) => {
             });
         }
 
-        // Step 6: Send verification email if email is updated
         if (verifyCode) {
             try {
                 await sendEmailfun(
@@ -478,34 +475,96 @@ const updateUserDetailsController = async (req, res) => {
                     "",
                     verifyEmailTemplate(updatedUser.name, verifyCode),
                 );
-        } 
-        catch (emailError) {
-            console.error("Failed to send email:", emailError);
-            return res.status(500).json({
-                message: "User updated, but failed to send verification email.",
+            }
+            catch (emailError) {
+                console.error("Failed to send email:", emailError);
+                return res.status(500).json({
+                    message: "User updated, but failed to send verification email.",
+                    error: true,
+                    success: false,
+                    user: updatedUser,
+                });
+            }
+        }
+
+
+        return res.status(200).json({
+            message: "User updated successfully.",
+            error: false,
+            success: true,
+            user: updatedUser,
+        });
+    }
+    catch (error) {
+
+        console.error("Error in updateUserDetailsController:", error);
+        return res.status(500).json({
+            message: error.message || "An unexpected error occurred.",
+            error: true,
+            success: false,
+        });
+    }
+};
+
+const forgotPasswordController = async (req, res) => {
+    try {
+        const { email } = req.body;
+        console.log(email)
+
+        if (!email) {
+            return res.status(400).json({
+                message: "Invalid email address",
                 error: true,
                 success: false,
-                user: updatedUser,
             });
         }
-    }
 
-        // Step 7: Respond with success
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(400).json({
+                message: "email is not avilable",
+                error: false,
+                success: true,
+            });
+        }
+
+      
+        const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
+        user.otp=verifyCode
+        user.otpExpiresIn=Date.now() + 600000
+        
+        await User.findByIdAndUpdate(
+            user._id,
+            {
+                otp: verifyCode,
+                otpExpiresIn: Date.now() + 600000, // 10 minutes
+            },
+            { new: true }
+        );
+
+        // Send verification email
+        await sendEmailfun(
+            email,
+            "Verify your email - FarmerBuddy",
+            "",
+            verifyEmailTemplate(user.name, verifyCode)
+        );
+
         return res.status(200).json({
-        message: "User updated successfully.",
-        error: false,
-        success: true,
-        user: updatedUser,
-    });
-} catch (error) {
-    // Step 8: Handle errors
-    console.error("Error in updateUserDetailsController:", error);
-    return res.status(500).json({
-        message: error.message || "An unexpected error occurred.",
-        error: true,
-        success: false,
-    });
-}
+            message: "check your email",
+            error: false,
+            success: true,
+        });
+    } catch (error) {
+        console.error("Forgot password error:", error); // Log error for debugging
+
+        return res.status(500).json({
+            message: "An error occurred. Please try again later.",
+            error: true,
+            success: false,
+        });
+    }
 };
 
 
@@ -517,4 +576,5 @@ export {
     userAvatarController,
     removeImageFromCloudinary,
     updateUserDetailsController,
+    forgotPasswordController
 }
