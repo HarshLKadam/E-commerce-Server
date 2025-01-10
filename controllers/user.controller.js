@@ -529,11 +529,11 @@ const forgotPasswordController = async (req, res) => {
             });
         }
 
-      
+
         const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
-        user.otp=verifyCode
-        user.otpExpiresIn=Date.now() + 600000
-        
+        user.otp = verifyCode
+        user.otpExpiresIn = Date.now() + 600000
+
         await User.findByIdAndUpdate(
             user._id,
             {
@@ -567,6 +567,63 @@ const forgotPasswordController = async (req, res) => {
     }
 };
 
+const verifyForgotPasswordOtp = async (req, res) => {
+    const { email, otp } = req.body
+
+    const user = await User.findOne({
+        email: email
+    })
+
+    if(!user){
+        return res.status(400)
+        .json({
+            message:"user not found",
+            error :true,
+            success:false
+        })
+    }
+
+    if (!email || !otp) {
+        return res.status(400)
+            .json({
+                message: "please provide a otp",
+                error: true,
+                success: false
+            })
+    }
+
+    if(otp !== user.otp){
+        return res.status(200)
+        .json({
+            message:"otp is Invalid",
+            error:false,
+            success:true
+
+        })
+    }
+    const currentTime = new Date().toISOString()
+    if (user.otpExpiresIn < currentTime) {
+        return res.status(400)
+            .json({
+                message: "Otp is expired ",
+                error: true,
+                success: false
+            })
+    }
+
+    user.otp=""
+    user.otpExpiresIn="";
+
+    await user.save()
+    return res.status(200)
+        .json({
+            message: "Otp Verified !",
+            error: false,
+            success: true
+        })
+
+}
+
 
 export {
     registerUserController,
@@ -576,5 +633,6 @@ export {
     userAvatarController,
     removeImageFromCloudinary,
     updateUserDetailsController,
-    forgotPasswordController
+    forgotPasswordController,
+    verifyForgotPasswordOtp
 }

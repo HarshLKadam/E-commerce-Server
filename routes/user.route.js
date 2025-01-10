@@ -1,5 +1,5 @@
 import {Router} from 'express'
-import {forgotPasswordController, loginUserController, logoutUserController, registerUserController, removeImageFromCloudinary, updateUserDetailsController, userAvatarController, verifyEmailController} from '../controllers/user.controller.js'
+import {forgotPasswordController, loginUserController, logoutUserController, registerUserController, removeImageFromCloudinary, updateUserDetailsController, userAvatarController, verifyEmailController, verifyForgotPasswordOtp} from '../controllers/user.controller.js'
 import authentication from '../middleware/auth.middleware.js'
 import upload from '../middleware/multer.middleware.js'
 
@@ -21,5 +21,7 @@ userRouter.delete('/deleteimage',authentication,removeImageFromCloudinary)
 userRouter.put('/:id',authentication,updateUserDetailsController)
 
 userRouter.post('/forgot-password',forgotPasswordController)
+
+userRouter.post('/verify-forgot-password-otp',verifyForgotPasswordOtp)
 
 export default userRouter
