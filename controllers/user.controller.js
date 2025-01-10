@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import bcryptjs from 'bcryptjs'
 import jwt from 'jsonwebtoken'
+
 import sendEmailfun from "../config/sendEmail.js";
 import verifyEmailTemplate from '../utils/verifyEmailtemplate.js'
 import generateAccesstoken from "../utils/generateAccessToken.js";
@@ -70,10 +71,10 @@ const registerUserController = async (req, res) => {
         // Send verification email
         await sendEmailfun(
             email,
-            "Verification email from FarmerBuddy",
+            "verify email from farmerBuddy",
             "",
             verifyEmailTemplate(name, verifyCode)
-        );
+        )
 
         // Generate JWT token for further verification
         const token = jwt.sign(
@@ -134,7 +135,8 @@ const verifyEmailController = async (req, res) => {
             error: true,
             success: false
         });
-    } catch (error) {
+    }
+    catch (error) {
         return res.status(500).json({
             message: error.message || error,
             error: true,
@@ -142,7 +144,6 @@ const verifyEmailController = async (req, res) => {
         });
     }
 };
-
 
 const loginUserController = async (req, res) => {
     try {
@@ -174,6 +175,15 @@ const loginUserController = async (req, res) => {
             res.status(400)
                 .json({
                     message: "contact to admin",
+                    error: true,
+                    success: false
+                })
+        }
+
+        if (user.verify_email !== true) {
+            res.status(400)
+                .json({
+                    message: "Your Email is not verified yet please verify your email first",
                     error: true,
                     success: false
                 })
@@ -264,7 +274,6 @@ const logoutUserController = async (req, res) => {
 }
 
 var imageArray = [];
-
 const userAvatarController = async (req, res) => {
     try {
         imageArray = []
@@ -395,45 +404,110 @@ const removeImageFromCloudinary = async (req, res) => {
     }
 };
 
-const updateUserDetailsController=async(req,res)=>{
-    try{
-        const userid=req.userId;
-        const {name,email,mobile,password}=req.body;
+const updateUserDetailsController = async (req, res) => {
+    try {
+        const userId = req.userId; // Extracting the user's ID
+        const { name, email, mobile, password } = req.body;
 
-        const userExist=await User.findById(userid)
-        if(!userExist){
-            res.status(400)
-            .json({
-                message:"The user can't be Updated or user are not exist",
-                error:true,
-                success:false
-            })
-        }
-        let verifyCode="";
-
-        if(email){
-            verifyCode=Math.floor(100000 + Math.random() * 900000).toString();
-        }
-
-        let hashPassword="";
-
-        if(password){
-            const salt=await bcryptjs.genSalt(10)
-            hashPassword=await bcryptjs.hash(password,salt)
-        }
-        else{
-            hashPassword=userExist.password
-        }
-    }
-    catch (error) {
-        return res.status(500)
-            .json({
-                'message': error.message || error,
+        // Step 1: Verify the user exists
+        const userExist = await User.findById(userId);
+        if (!userExist) {
+            return res.status(404).json({
+                message: "User not found. Cannot update.",
                 error: true,
-                success: false
-            })
+                success: false,
+            });
+        }
+
+        // Step 2: Check if the email is already in use (if email is being updated)
+        if (email && email !== userExist.email) {
+            const emailExists = await User.findOne({ email });
+            if (emailExists) {
+                return res.status(400).json({
+                    message: "The new email is already in use by another account.",
+                    error: true,
+                    success: false,
+                });
+            }
+        }
+
+        // Step 3: Hash the password if provided
+        let hashedPassword = userExist.password; // Default to the existing password
+        if (password) {
+            const salt = await bcryptjs.genSalt(10);
+            hashedPassword = await bcryptjs.hash(password, salt);
+        }
+
+        // Step 4: Generate OTP if email is being changed
+        let verifyCode = null;
+        let otpExpiresIn = null;
+        if (email && email !== userExist.email) {
+            verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
+            otpExpiresIn = Date.now() + 600000; // OTP valid for 10 minutes
+        }
+
+        // Step 5: Update the user in the database
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            {
+                name: name || userExist.name,
+                mobile: mobile || userExist.mobile,
+                email: email || userExist.email,
+                verify_email: email && email !== userExist.email ? false : userExist.verify_email,
+                password: hashedPassword,
+                otp: verifyCode,
+                otpExpiresIn: otpExpiresIn,
+            },
+            { new: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(500).json({
+                message: "Failed to update the user.",
+                error: true,
+                success: false,
+            });
+        }
+
+        // Step 6: Send verification email if email is updated
+        if (verifyCode) {
+            try {
+                await sendEmailfun(
+                    email,
+                    "Verify your email - FarmerBuddy",
+                    "",
+                    verifyEmailTemplate(updatedUser.name, verifyCode),
+                );
+        } 
+        catch (emailError) {
+            console.error("Failed to send email:", emailError);
+            return res.status(500).json({
+                message: "User updated, but failed to send verification email.",
+                error: true,
+                success: false,
+                user: updatedUser,
+            });
+        }
     }
+
+        // Step 7: Respond with success
+        return res.status(200).json({
+        message: "User updated successfully.",
+        error: false,
+        success: true,
+        user: updatedUser,
+    });
+} catch (error) {
+    // Step 8: Handle errors
+    console.error("Error in updateUserDetailsController:", error);
+    return res.status(500).json({
+        message: error.message || "An unexpected error occurred.",
+        error: true,
+        success: false,
+    });
 }
+};
+
 
 export {
     registerUserController,
@@ -442,5 +516,5 @@ export {
     logoutUserController,
     userAvatarController,
     removeImageFromCloudinary,
-    updateUserDetailsController
+    updateUserDetailsController,
 }
