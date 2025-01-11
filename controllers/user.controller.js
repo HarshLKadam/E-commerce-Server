@@ -9,6 +9,7 @@ import generateRefreshToken from "../utils/generateRefreshToken.js";
 
 import { v2 as cloudinary } from 'cloudinary';
 import fs from 'fs'
+import { error } from "console";
 
 
 cloudinary.config({
@@ -496,8 +497,6 @@ const updateUserDetailsController = async (req, res) => {
         });
     }
     catch (error) {
-
-        console.error("Error in updateUserDetailsController:", error);
         return res.status(500).json({
             message: error.message || "An unexpected error occurred.",
             error: true,
@@ -574,13 +573,13 @@ const verifyForgotPasswordOtp = async (req, res) => {
         email: email
     })
 
-    if(!user){
+    if (!user) {
         return res.status(400)
-        .json({
-            message:"user not found",
-            error :true,
-            success:false
-        })
+            .json({
+                message: "user not found",
+                error: true,
+                success: false
+            })
     }
 
     if (!email || !otp) {
@@ -592,14 +591,14 @@ const verifyForgotPasswordOtp = async (req, res) => {
             })
     }
 
-    if(otp !== user.otp){
+    if (otp !== user.otp) {
         return res.status(200)
-        .json({
-            message:"otp is Invalid",
-            error:false,
-            success:true
+            .json({
+                message: "otp is Invalid",
+                error: false,
+                success: true
 
-        })
+            })
     }
     const currentTime = new Date().toISOString()
     if (user.otpExpiresIn < currentTime) {
@@ -611,8 +610,8 @@ const verifyForgotPasswordOtp = async (req, res) => {
             })
     }
 
-    user.otp=""
-    user.otpExpiresIn="";
+    user.otp = ""
+    user.otpExpiresIn = "";
 
     await user.save()
     return res.status(200)
@@ -624,6 +623,151 @@ const verifyForgotPasswordOtp = async (req, res) => {
 
 }
 
+const resetPasswordController = async (req, res) => {
+    try {
+        const { email, newPassword, confirmPassword } = req.body
+
+        if (!email || !newPassword || !confirmPassword) {
+            return res.status(400)
+                .json({
+                    message: "email,newPassword,confirmPassword are required ",
+                    error: true,
+                    success: false
+                })
+        }
+
+        const user = await User.findOne({
+            email: email
+        })
+
+        if (!user) {
+            return res.status(400)
+                .json({
+                    message: "user is not found ",
+                    error: true,
+                    success: false
+                })
+        }
+
+        if (newPassword !== confirmPassword) {
+            return res.status(400)
+                .json({
+                    message: "new password and confirm password must be same ",
+                    error: true,
+                    success: false
+                })
+        }
+
+        const salt = await bcryptjs.genSalt(10)
+        const hashPassword = await bcryptjs.hash(newPassword, salt)
+
+        await User.findOneAndUpdate(
+            user._id,
+            {
+                password: hashPassword
+            }
+        )
+        console.log(newPassword)
+        console.log(hashPassword)
+
+        return res.status(200)
+            .json({
+                message: "password updated successfully",
+                error: false,
+                success: true
+            })
+
+
+    }
+    catch (error) {
+        return res.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false,
+        });
+    }
+}
+
+const refreshToken = async (req, res) => {
+    try {
+        const refreshToken=req.cookies.refreshToken || req?.headers?.authorization?.split("")[1]
+        
+        if(!refreshToken){
+            returnres.status(400)
+            .json({
+                message:"Invalid token",
+                error:true,
+                success:false
+            })
+        }
+        const verifyToken= await jwt.verify(refreshToken, process.env.SECRET_KEY_REFRESH_TOKEN)
+
+        if(!verifyToken){
+            return res.status(401)
+            .json({
+                message:"token is expired",
+                error:true,
+                success:false
+            })
+        }
+
+        const userid=verifyToken?._id
+
+        const newAccessToken=await generateAccesstoken(userid)
+
+        const cookiesOption={
+            httpOnly:true,
+            secure:true,
+            sameSite:"None"
+        }
+
+        res.cookie('AccessToken',newAccessToken,cookiesOption)
+
+        return res.status(200)
+        .json({
+            message:"New Access token generated",
+            error:false,
+            success:true,
+            data:{
+                accessToken:newAccessToken
+            }
+        })
+    }
+    catch (error) {
+        return res.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false,
+        });
+    }
+
+}
+
+//get login user details
+const userDetailsController=async(req,res)=>{
+    try{
+       const userid=req.userId
+
+       const user=await User.findById(userid).select(
+        "-password -refersh_token"
+       )
+       return res.status(200)
+       .json({
+        message:'user details ',
+        data:user,
+        error:false,
+        success:true 
+       })
+
+    }
+    catch (error) {
+        return res.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false,
+        });
+    }
+}
 
 export {
     registerUserController,
@@ -634,5 +778,8 @@ export {
     removeImageFromCloudinary,
     updateUserDetailsController,
     forgotPasswordController,
-    verifyForgotPasswordOtp
+    verifyForgotPasswordOtp,
+    resetPasswordController,
+    refreshToken,
+    userDetailsController
 }
