@@ -6,7 +6,8 @@ import cookieParser from 'cookie-parser'
 import morgon from 'morgan'
 import helmet from 'helmet'
 import connectDB from './config/connectdb.js'
-import userRouter from './routes/user.route.js'
+import userRoute from './routes/user.route.js'
+import categoryRoute from './routes/category.route.js'
 
 const app=express()
 
@@ -30,7 +31,8 @@ app.get('/',(req,res)=>{
     })
 })
 
-app.use('/api/user',userRouter)
+app.use('/api/user',userRoute)
+app.use('/api/category',categoryRoute)
 
 connectDB()
 .then(()=>{
