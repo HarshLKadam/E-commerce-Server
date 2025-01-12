@@ -1,7 +1,7 @@
 import { Router } from "express";
 import authentication from "../middleware/auth.middleware.js";
 import upload from "../middleware/multer.middleware.js";
-import { createCategoryController, getCategoryController, getCategoryCountController, getSingleCategoryCountController, getSubCategoryCountController, removeImageFromCloudinary, uploadImagesController } from "../controllers/category.controller.js";
+import { createCategoryController, deleteCategoryController, getCategoryController, getCategoryCountController, getSingleCategoryCountController, getSubCategoryCountController, removeImageFromCloudinary, updateCategoryController, uploadImagesController } from "../controllers/category.controller.js";
 
 
 const categoryRoute = Router()
@@ -20,9 +20,8 @@ categoryRoute.get('/:id',getSingleCategoryCountController)
 
 categoryRoute.delete('/remove-image',authentication,removeImageFromCloudinary)
 
+categoryRoute.delete('/:id',authentication,deleteCategoryController)
 
-
-
-
+categoryRoute.put('/update-category/:id',authentication,updateCategoryController)
 
 export default categoryRoute;

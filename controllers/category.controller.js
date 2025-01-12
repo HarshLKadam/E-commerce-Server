@@ -116,30 +116,30 @@ const createCategoryController = async (req, res) => {
 //get all categories
 const getCategoryController = async (req, res) => {
     try {
-        const categrory=await Category.find()
+        const categrory = await Category.find()
 
-       const categroryMap={}
-        categrory.forEach(categorie=>{
-            categroryMap[categorie._id]={...categorie._doc, children:[]};
+        const categroryMap = {}
+        categrory.forEach(categorie => {
+            categroryMap[categorie._id] = { ...categorie._doc, children: [] };
         })
 
-        const rootcategories=[]
-        categrory.forEach(categorie=>{
-            if(categorie.parentCategoryId){
+        const rootcategories = []
+        categrory.forEach(categorie => {
+            if (categorie.parentCategoryId) {
                 categroryMap[categorie.parentCategoryId].children.push(categroryMap[categorie._id]);
             }
-            else{
+            else {
                 rootcategories.push(categroryMap[categorie._id])
             }
         })
 
         return res.status(200)
-        .json({
-            message:"categories created successfully",
-            error:false,
-            success:true,
-            data:rootcategories
-        })
+            .json({
+                message: "categories created successfully",
+                error: false,
+                success: true,
+                data: rootcategories
+            })
     }
     catch (error) {
         return res.status(500).json({
@@ -153,22 +153,22 @@ const getCategoryController = async (req, res) => {
 //get category count 
 const getCategoryCountController = async (req, res) => {
     try {
-      const categoryCount=await Category.countDocuments({
-        parentCategoryId:undefined
-      })
+        const categoryCount = await Category.countDocuments({
+            parentCategoryId: undefined
+        })
 
-      if(!categoryCount){
-        res.status(500)
-        .json({
-            error:true,
-            success:false
-        })
-      }
-      else{
-        res.send({
-            categoryCount:categoryCount
-        })
-      }
+        if (!categoryCount) {
+            res.status(500)
+                .json({
+                    error: true,
+                    success: false
+                })
+        }
+        else {
+            res.send({
+                categoryCount: categoryCount
+            })
+        }
     }
     catch (error) {
         return res.status(500).json({
@@ -213,24 +213,24 @@ const getSubCategoryCountController = async (req, res) => {
 
 //get single category by id 
 const getSingleCategoryCountController = async (req, res) => {
-    try{
-        const category=await Category.findById(req.params.id)
+    try {
+        const category = await Category.findById(req.params.id)
 
-        if(!category){
+        if (!category) {
             return res.status(500)
-            .json({
-                message:"The Category with given id is not found ",
-                error:true,
-                success:false
-            })
+                .json({
+                    message: "The Category with given id is not found ",
+                    error: true,
+                    success: false
+                })
         }
 
         return res.status(200)
-        .json({
-            category:category,
-            error:false,
-            success:true
-        })
+            .json({
+                category: category,
+                error: false,
+                success: true
+            })
     }
     catch (error) {
         return res.status(500).json({
@@ -284,32 +284,107 @@ const removeImageFromCloudinary = async (req, res) => {
 };
 
 const deleteCategoryController = async (req, res) => {
-    try{
-      const category=await Category.findById(req.params.id)
-      const images=category.images
+    try {
+        const category = await Category.findById(req.params.id)
+        const images = category.images
 
-      for(img  of images){
-        const imageUrl=img;
-        const urlArray=imageUrl.split('/')
-        const image=urlArray[urlArray.length-1];
+        for (img of images) {
+            const imageUrl = img;
+            const urlArray = imageUrl.split('/')
+            const image = urlArray[urlArray.length - 1];
 
-        const imageName=image.split('.')[0];
+            const imageName = image.split('.')[0];
 
-        if (imageName){
-            cloudinary.uploader.destroy(
-                imageName,
-                (error,result)=>{
-                    console.log(error,result)
-                }
-            )
+            if (imageName) {
+                cloudinary.uploader.destroy(
+                    imageName,
+                    (error, result) => {
+                        console.log(error, result)
+                    }
+                )
+            }
+
         }
-        
-      }
 
-      //finding the sub category
-      const subCategory=await Category({
-        parentCategoryId:req.params.id
-      })
+        //finding the sub category
+        const subCategory = await Category.find({
+            parentCategoryId: req.params.id
+        })
+
+        for (let i = 0; i < subCategory.length; i++) {
+            console.log(subCategory[i]._id);
+
+            const thirdSubCategory = await Category.find({
+                parentCategoryId: subCategory[i]._id
+            })
+
+            for (let i = 0; i < thirdSubCategory.length; i++) {
+                const deletedSubCategory = await Category.findByIdAndDelete(thirdSubCategory[i]._id)
+            }
+
+            const deletedSubCategory = await Category.findByIdAndDelete(subCategory[i]._id)
+        }
+
+        const deleteCategory = await Category.findByIdAndDelete(req.params.id);
+
+        if (!deleteCategory) {
+            return res.status(400)
+                .json({
+                    message: "category not found",
+                    error: true,
+                    success: false
+                })
+        }
+
+        return res.status(200)
+            .json({
+                message: "category deleted successfully",
+                error: false,
+                success: true
+            })
+
+    }
+    catch (error) {
+        return res.status(500).json({
+            message: error.message || error,
+            error: true,
+            success: false,
+        });
+    }
+}
+
+const updateCategoryController = async (req, res) => {
+    try {
+       
+        let category = await Category.findByIdAndUpdate(
+            req.params.id,
+            {
+            name: req.body.name,
+            images: imageArray.length > 0 ? imageArray[0] : req.body.images,
+            parentCategoryId: req.body.parentCategoryId,
+            parentCategoryName: req.body.parentCategoryName
+        }, {
+        new :true
+    })
+
+        if(!category){
+            return res.status(500)
+            .json({
+                message:"category cannot be updated",
+                error:true,
+                success:false
+            })
+        }
+
+        imageArray=[]
+
+        return res.status(200)
+        .json({
+            message:"category updated",
+            error:false,
+            success:true,
+            category:category
+        })
 
     }
     catch (error) {
@@ -331,7 +406,7 @@ export {
     getSubCategoryCountController,
     getSingleCategoryCountController,
     removeImageFromCloudinary,
-    deleteCategoryController
-
+    deleteCategoryController,
+    updateCategoryController
 }
 
