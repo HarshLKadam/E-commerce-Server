@@ -28,6 +28,10 @@ const productSchema=new Schema({
         type:String,
         default:0
     },
+    category:{
+        type:Schema.Types.ObjectId,
+        ref:'Category'
+    },
     categoryName:{
         type:String,
         default:''
