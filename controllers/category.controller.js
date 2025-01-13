@@ -396,8 +396,6 @@ const updateCategoryController = async (req, res) => {
     }
 }
 
-
-
 export {
     uploadImagesController,
     createCategoryController,
