@@ -93,8 +93,10 @@ const createProductController = async (req, res) => {
             discount: req.body.discount,
             size: req.body.size,
             productWeight: req.body.productWeight,
-
-        })
+        },
+            {
+                new: true
+            })
 
         product = await product.save()
 
@@ -127,7 +129,6 @@ const createProductController = async (req, res) => {
         });
     }
 }
-
 
 //get all products 
 const getAllProductController = async (req, res) => {
@@ -522,6 +523,253 @@ const getAllProductByRatingController = async (req, res) => {
     }
 }
 
+//get all product count 
+const getProductCountController = async (req, res) => {
+    try {
+        const productCount = await Product.countDocuments()
+
+        if (!productCount) {
+            return res.status(500)
+                .json({
+                    message: "product count not found",
+                    error: true,
+                    success: false
+                })
+        }
+
+        return res.status(200)
+            .json({
+                message: "product founded successfully",
+                error: false,
+                success: true,
+                productCount: productCount
+            })
+    }
+    catch (error) {
+        console.error('Error during image upload:', error);
+        return res.status(500).json({
+            message: 'Internal server error during image upload',
+            error: true,
+            success: false,
+        });
+    }
+}
+
+//get featured product 
+const getFeaturedProductController = async (req, res) => {
+    try {
+
+        const products = await Product.find({ isFeatured: true })
+            .populate('category')
+
+        if (!products) {
+            return res.status(500)
+                .json({
+                    message: "products is not geting",
+                    error: true,
+                    success: false
+                })
+        }
+
+        return res.status(200)
+            .json({
+                message: "list of all products ",
+                error: false,
+                success: true,
+                products: products,
+            })
+    }
+    catch (error) {
+        console.error('Error during image upload:', error);
+        return res.status(500).json({
+            message: 'Internal server error during image upload',
+            error: true,
+            success: false,
+        });
+    }
+}
+
+//delete producut 
+const deleteProductController = async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id);
+        if (!product) {
+            return res.status(404).json({
+                message: "Product not found",
+                error: true,
+                success: false,
+            });
+        }
+
+        const images = product.images || [];
+        for (const img of images) {
+            const urlArray = img.split('/');
+            const image = urlArray[urlArray.length - 1];
+            const imageName = image.split('.')[0];
+
+            if (imageName) {
+                try {
+                    await cloudinary.uploader.destroy(imageName);
+                } catch (error) {
+                    console.error(`Failed to delete image ${imageName}:`, error);
+                }
+            }
+        }
+
+        const deleteProduct = await Product.findByIdAndDelete(req.params.id);
+        if (!deleteProduct) {
+            return res.status(404).json({
+                message: "Product not found during deletion",
+                error: true,
+                success: false,
+            });
+        }
+
+        return res.status(200).json({
+            message: "Product deleted successfully",
+            error: false,
+            success: true,
+        });
+    }
+    catch (error) {
+        console.error("Delete product error:", error);
+        return res.status(500).json({
+            message: "Internal server error while deleting product",
+            error: true,
+            success: false,
+        });
+    }
+};
+
+//get single product 
+const getSingleProductController = async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id);
+
+        if (!product) {
+            return res.status(404).json({
+                message: "The product with the given ID is not found",
+                error: true,
+                success: false,
+            });
+        }
+
+        return res.status(200).json({
+            message: "Product retrieved successfully",
+            error: false,
+            success: true,
+            product: product,
+        });
+
+    } catch (error) {
+        console.error('Error fetching single product:', error);
+        return res.status(500).json({
+            message: 'Internal server error while retrieving product',
+            error: true,
+            success: false,
+        });
+    }
+};
+
+//delete image 
+const removeImageFromCloudinary = async (req, res) => {
+    try {
+        const imgUrl = req.query.img;
+        const urlArray = imgUrl.split('/');
+        const image = urlArray[urlArray.length - 1];
+        const imageName = image.split('.')[0];
+
+        console.log("Extracted Image Name:", imageName);
+
+        if (imageName) {
+            const response = await cloudinary.uploader.destroy(imageName);
+
+            if (response.result === 'ok') {
+                return res.status(200).send({
+                    message: "Image deleted successfully",
+                    success: true
+                });
+            } else {
+                return res.status(400).send({
+                    message: "Failed to delete image",
+                    result: response,
+                    success: false
+                });
+            }
+        }
+        else {
+            return res.status(400).send({
+                message: "Invalid image name",
+                success: false
+            });
+        }
+    }
+    catch (error) {
+        console.error('Error during image deletion:', error);
+        return res.status(500).json({
+            message: 'Internal server error during deleting image',
+            error: true,
+            success: false
+        });
+    }
+};
+
+//update image 
+const updateProductController = async (req, res) => {
+    try {
+        const updatedProduct = await Product.findByIdAndUpdate(
+            req.params.id,
+            {
+                name: req.body.name,
+                description: req.body.description,
+                images: imageArray,
+                brand: req.body.brand,
+                price: req.body.price,
+                oldPrice: req.body.oldPrice,
+                category: req.body.category,
+                categoryName: req.body.categoryName,
+                categoryId: req.body.categoryId,
+                subCategoryId: req.body.subCategoryId,
+                subCategoryName: req.body.subCategoryName,
+                thirdSubCategoryId: req.body.thirdSubCategoryId,
+                thirdSubCategoryName: req.body.thirdSubCategoryName,
+                countInStock: req.body.countInStock,
+                rating: req.body.rating,
+                isFeatured: req.body.isFeatured,
+                discount: req.body.discount,
+                size: req.body.size,
+                productWeight: req.body.productWeight,
+            },
+            { new: true } // return the updated document
+        );
+
+        if (!updatedProduct) {
+            return res.status(404).json({
+                message: "The product cannot be updated",
+                error: true,
+                success: false,
+            });
+        }
+
+        imageArray = [];
+
+        return res.status(200).json({
+            message: "Product updated successfully",
+            error: false,
+            success: true,
+        });
+
+    } catch (error) {
+        console.error('Error fetching single product:', error);
+        return res.status(500).json({
+            message: 'Internal server error updating product',
+            error: true,
+            success: false,
+        });
+    }
+};
+
+
 
 export {
     uploadProductImagesController,
@@ -532,5 +780,11 @@ export {
     getAllProductBySubCategoryIdController,
     getAllProductBySubCategoryNameController,
     getAllProductByPriceController,
-    getAllProductByRatingController
+    getAllProductByRatingController,
+    getProductCountController,
+    getFeaturedProductController,
+    deleteProductController,
+    getSingleProductController,
+    removeImageFromCloudinary,
+    updateProductController
 }
