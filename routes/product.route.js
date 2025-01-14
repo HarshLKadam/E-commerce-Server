@@ -1,6 +1,6 @@
 import { Router } from "express";
 import authentication from "../middleware/auth.middleware.js";
-import { uploadProductImagesController,createProductController, getAllProductController,getAllProductByCategoryIdController,getAllProductByCategoryNameController,getAllProductBySubCategoryIdController,getAllProductBySubCategoryNameController } from "../controllers/product.controller.js";
+import { uploadProductImagesController,createProductController, getAllProductController,getAllProductByCategoryIdController,getAllProductByCategoryNameController,getAllProductBySubCategoryIdController,getAllProductBySubCategoryNameController, getAllProductByPriceController, getAllProductByRatingController } from "../controllers/product.controller.js";
 import upload from '../middleware/multer.middleware.js'
  
 const productRoute=Router()
@@ -18,6 +18,10 @@ productRoute.get('/get-product-categoryName',getAllProductByCategoryNameControll
 productRoute.get('/get-product-subcategoryId/:id',getAllProductBySubCategoryIdController)
 
 productRoute.get('/get-products-subcatgeoryName',getAllProductBySubCategoryNameController)
+
+productRoute.get('/get-products-price',getAllProductByPriceController)
+
+productRoute.get('/get-products-rating',getAllProductByRatingController)
 
 export default productRoute
 

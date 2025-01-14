@@ -200,7 +200,7 @@ const getAllProductByCategoryIdController = async (req, res) => {
                 })
         }
 
-        const products = await Product.find({ categoryId:req.query.id})
+        const products = await Product.find({ categoryId: req.query.id })
             .populate('category')
             .skip((page - 1) * perPage)
             .limit(perPage)
@@ -253,7 +253,7 @@ const getAllProductByCategoryNameController = async (req, res) => {
                 })
         }
 
-        const products = await Product.find({ categoryName:req.query.categoryName})
+        const products = await Product.find({ categoryName: req.query.categoryName })
             .populate('category')
             .skip((page - 1) * perPage)
             .limit(perPage)
@@ -306,7 +306,7 @@ const getAllProductBySubCategoryIdController = async (req, res) => {
                 })
         }
 
-        const products = await Product.find({ subCategoryId:req.query.subCategoryId})
+        const products = await Product.find({ subCategoryId: req.query.subCategoryId })
             .populate('category')
             .skip((page - 1) * perPage)
             .limit(perPage)
@@ -341,6 +341,8 @@ const getAllProductBySubCategoryIdController = async (req, res) => {
     }
 }
 
+
+//get all product by category by sub category name 
 const getAllProductBySubCategoryNameController = async (req, res) => {
     try {
 
@@ -358,11 +360,138 @@ const getAllProductBySubCategoryNameController = async (req, res) => {
                 })
         }
 
-        const products = await Product.find({ subCategoryName:req.query.subCategoryName})
+        const products = await Product.find({ subCategoryName: req.query.subCategoryName })
             .populate('category')
             .skip((page - 1) * perPage)
             .limit(perPage)
             .exec();
+
+        if (!products) {
+            return res.status(500)
+                .json({
+                    message: "products is not geting",
+                    error: true,
+                    success: false
+                })
+        }
+
+        return res.status(200)
+            .json({
+                message: "list of all products ",
+                error: false,
+                success: true,
+                products: products,
+                totalPages: totalPages,
+                page: page
+            })
+    }
+    catch (error) {
+        console.error('Error during image upload:', error);
+        return res.status(500).json({
+            message: 'Internal server error during image upload',
+            error: true,
+            success: false,
+        });
+    }
+}
+
+// get all product by price 
+const getAllProductByPriceController = async (req, res) => {
+    try {
+        let productList = []
+
+        if (req.query.categoryId !== "" && req.query.categoryId !== undefined) {
+            const productListArray = await Product.find({
+                categoryId: req.query.categoryId,
+            }).populate("category")
+
+            productList = productListArray
+
+        }
+
+        if (req.query.subCategoryId !== "" && req.query.subCategoryId !== undefined) {
+            const productListArray = await Product.find({
+                subCategoryId: req.query.subCategoryId,
+            }).populate("category")
+
+            productList = productListArray
+
+        }
+
+        const filteredProducts = productList.filter((product) => {
+            if (req.query.minPrice && product.price < parseInt(+req.query.minPrice)) {
+                return false
+            }
+            if (req.query.maxPrice && product.price > parseInt(+req.query.maxPrice)) {
+                return false
+            }
+            return true
+        })
+
+        return res.status(200)
+            .json({
+                message: "filtered products ",
+                products: filteredProducts,
+                totalPages: 0,
+                page: 0,
+                error: false,
+                success: true
+            })
+
+
+    }
+    catch (error) {
+        console.error('Error during image upload:', error);
+        return res.status(500).json({
+            message: 'Internal server error during image upload',
+            error: true,
+            success: false,
+        });
+    }
+
+
+}
+
+// get all product by rating
+const getAllProductByRatingController = async (req, res) => {
+    try {
+
+        let page = parseInt(req.query.page) || 1;
+        let perPage = parseInt(req.query.perPage) || 10000;
+        let totalPosts = await Product.countDocuments();
+        const totalPages = Math.ceil(totalPosts / perPage)
+
+        if (page > totalPages) {
+            return res.status(400)
+                .json({
+                    message: 'page not found',
+                    success: false,
+                    error: true
+                })
+        }
+
+        let products = []
+        if (req.query.categoryId !== undefined) {
+            products = await Product.find({
+                rating: req.query.rating,
+                categoryId: req.query.categoryId,
+            })
+                .populate('category')
+                .skip((page - 1) * perPage)
+                .limit(perPage)
+                .exec();
+        }
+
+        if (req.query.subCategoryId !== undefined) {
+            products = await Product.find({
+                rating: req.query.rating,
+                subCategoryId: req.query.subCategoryId,
+            })
+                .populate('category')
+                .skip((page - 1) * perPage)
+                .limit(perPage)
+                .exec();
+        }
 
         if (!products) {
             return res.status(500)
@@ -401,5 +530,7 @@ export {
     getAllProductByCategoryIdController,
     getAllProductByCategoryNameController,
     getAllProductBySubCategoryIdController,
-    getAllProductBySubCategoryNameController
+    getAllProductBySubCategoryNameController,
+    getAllProductByPriceController,
+    getAllProductByRatingController
 }
