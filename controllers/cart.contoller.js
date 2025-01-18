@@ -196,7 +196,7 @@ const deleteCartItemController = async (req, res) => {
 
         if (!user) {
             return res.status(404).json({
-                message: "User not found.",
+                message: "User not found",
                 error: true,
                 success: false,
             });
@@ -215,7 +215,6 @@ const deleteCartItemController = async (req, res) => {
 
         user.shopping_cart = updatedCart;
 
-        // Save the updated user document
         await user.save();
 
         return res.status(200).json({
