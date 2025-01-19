@@ -148,97 +148,82 @@ const verifyEmailController = async (req, res) => {
 
 const loginUserController = async (req, res) => {
     try {
-        const { email, password } = req.body
+        const { email, password } = req.body;
 
         if (!email || !password) {
-            return res.status(400)
-                .json({
-                    message: 'please provide a valid password or email',
-                    error: true,
-                    success: false
-                })
+            return res.status(400).json({
+                message: 'Please provide a valid email and password',
+                error: true,
+                success: false,
+            });
         }
 
-        const user = await User.findOne({
-            email: email
-        })
+        const user = await User.findOne({ email: email });
 
         if (!user) {
-            return res.status(400)
-                .json({
-                    message: 'user is not registered ',
-                    error: true,
-                    success: false
-                })
+            return res.status(400).json({
+                message: 'User is not registered',
+                error: true,
+                success: false,
+            });
         }
 
         if (user.status !== "Active") {
-            res.status(400)
-                .json({
-                    message: "contact to admin",
-                    error: true,
-                    success: false
-                })
+            return res.status(400).json({
+                message: 'Contact the admin',
+                error: true,
+                success: false,
+            });
         }
 
-        if (user.verify_email !== true) {
-            res.status(400)
-                .json({
-                    message: "Your Email is not verified yet please verify your email first",
-                    error: true,
-                    success: false
-                })
+        if (!user.verify_email) {
+            return res.status(400).json({
+                message: 'Your email is not verified yet. Please verify your email first',
+                error: true,
+                success: false,
+            });
         }
 
-        const isPasswordValid = await bcryptjs.compare(password, user.password)
-
+        const isPasswordValid = await bcryptjs.compare(password, user.password);
         if (!isPasswordValid) {
-            res.status(500)
-                .json({
-                    message: "enter the valid password",
-                    error: true,
-                    success: false
-                })
+            return res.status(400).json({
+                message: 'Enter a valid password',
+                error: true,
+                success: false,
+            });
         }
 
-        const accessToken = await generateAccesstoken(user._id)
-        const refreshToken = await generateRefreshToken(user._id)
+        const accessToken = await generateAccesstoken(user._id);
+        const refreshToken = await generateRefreshToken(user._id);
 
-        const updateUser = await User.findByIdAndUpdate(user._id, {
-            last_login_date: new Date()
-        })
+        await User.findByIdAndUpdate(user._id, { last_login_date: new Date() });
 
-        //adding a clearCookiess for user 
-
-        const cokkiesOptions = {
+        const cookiesOptions = {
             httpOnly: true,
             secure: true,
-            sameSite: 'None'
-        }
+            sameSite: 'None',
+        };
 
-        res.cookie('accessToken', accessToken, cokkiesOptions)
-        res.cookie('refreshToken', accessToken, cokkiesOptions)
+        res.cookie('accessToken', accessToken, cookiesOptions);
+        res.cookie('refreshToken', refreshToken, cookiesOptions);
 
         return res.json({
-            message: "login successfully",
+            message: 'Login successful',
             error: false,
             success: true,
             data: {
                 accessToken,
-                refreshToken
-            }
-        })
-
+                refreshToken,
+            },
+        });
+    } catch (error) {
+        return res.status(500).json({
+            message: error.message || 'Internal server error',
+            error: true,
+            success: false,
+        });
     }
-    catch (error) {
-        return res.status(500)
-            .json({
-                'message': error.message || error,
-                error: true,
-                success: false
-            })
-    }
-}
+};
 
 const logoutUserController = async (req, res) => {
     try {
