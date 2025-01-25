@@ -262,21 +262,29 @@ const logoutUserController = async (req, res) => {
 var imageArray = [];
 const userAvatarController = async (req, res) => {
     try {
-        imageArray = []
+        imageArray = []; 
 
         const userId = req.userId;
         const avatarImage = req.files;
 
+        if (!avatarImage || avatarImage.length === 0) {
+            return res.status(400).json({
+                message: 'No files received',
+                error: true,
+                success: false,
+            });
+        }
+
         const user = await User.findOne({
             _id: userId
-        })
+        });
 
         if (!user) {
             return res.status(500).json({
-                message: 'user not found while uploading image',
+                message: 'User not found while uploading image',
                 error: true,
                 success: false
-            })
+            });
         }
 
         const userAvatar = user.avatar;
@@ -286,15 +294,7 @@ const userAvatarController = async (req, res) => {
         const imageName = image.split('.')[0];
 
         if (imageName) {
-            const response = await cloudinary.uploader.destroy(imageName);
-        }
-
-        if (!avatarImage || avatarImage.length === 0) {
-            return res.status(400).json({
-                message: 'No files provided',
-                error: true,
-                success: false,
-            });
+            await cloudinary.uploader.destroy(imageName);
         }
 
         const options = {
@@ -304,41 +304,37 @@ const userAvatarController = async (req, res) => {
         };
 
         for (let i = 0; i < avatarImage.length; i++) {
-            const imgUrl = avatarImage[i].path;
-            const urlArray = imgUrl.split('/');
-            const image = urlArray[urlArray.length - 1];
-            const imageName = image.split('.')[0];
+            const result = await cloudinary.uploader.upload(avatarImage[i].path, options)
+                .catch(error => {
+                    console.error('Cloudinary upload error:', error);
+                    return null;
+                });
 
-            if (imageName) {
-                const response = await cloudinary.uploader.destroy(imageName);
+            if (result) {
+                imageArray.push(result.secure_url);
 
-                if (response.result === 'ok') {
-                    return res.status(200).send({
-                        message: "Image deleted successfully",
-                        success: true
-                    });
+                try {
+                    fs.unlinkSync(avatarImage[i].path); // Fixed incorrect reference
+                } catch (err) {
+                    console.error(`Failed to delete file: ${avatarImage[i].path}`, err); // Corrected file path reference
                 }
+            } else {
+                console.log(`Failed to upload image: ${avatarImage[i].path}`); // Corrected file path reference
             }
-
-            const result = await cloudinary.uploader.upload(
-                avatarImage[i].path,
-                options
-            );
-
-            imageArray.push(result.secure_url);
-            fs.unlinkSync(`uploads/${avatarImage[i].filename}`);
         }
 
-        user.avatar = imageArray[0]
-        await user.save()
-
-        return res.status(200).json({
-            message: 'Images uploaded successfully',
-            _id: userId,
-            avatar: imageArray[0],
-        });
-    }
-    catch (error) {
+        if (imageArray.length > 0) {
+            return res.status(200).json({
+                images: imageArray,
+            });
+        } else {
+            return res.status(500).json({
+                message: 'No images were uploaded.',
+                error: true,
+                success: false,
+            });
+        }
+    } catch (error) {
         console.error('Error during avatar image upload:', error);
         return res.status(500).json({
             message: 'Internal server error during avatar upload',
@@ -347,6 +343,7 @@ const userAvatarController = async (req, res) => {
         });
     }
 };
+
 
 const removeImageFromCloudinary = async (req, res) => {
     try {
@@ -675,48 +672,48 @@ const resetPasswordController = async (req, res) => {
 
 const refreshToken = async (req, res) => {
     try {
-        const refreshToken=req.cookies.refreshToken || req?.headers?.authorization?.split("")[1]
-        
-        if(!refreshToken){
+        const refreshToken = req.cookies.refreshToken || req?.headers?.authorization?.split("")[1]
+
+        if (!refreshToken) {
             returnres.status(400)
-            .json({
-                message:"Invalid token",
-                error:true,
-                success:false
-            })
+                .json({
+                    message: "Invalid token",
+                    error: true,
+                    success: false
+                })
         }
-        const verifyToken= await jwt.verify(refreshToken, process.env.SECRET_KEY_REFRESH_TOKEN)
+        const verifyToken = await jwt.verify(refreshToken, process.env.SECRET_KEY_REFRESH_TOKEN)
 
-        if(!verifyToken){
+        if (!verifyToken) {
             return res.status(401)
-            .json({
-                message:"token is expired",
-                error:true,
-                success:false
-            })
+                .json({
+                    message: "token is expired",
+                    error: true,
+                    success: false
+                })
         }
 
-        const userid=verifyToken?._id
+        const userid = verifyToken?._id
 
-        const newAccessToken=await generateAccesstoken(userid)
+        const newAccessToken = await generateAccesstoken(userid)
 
-        const cookiesOption={
-            httpOnly:true,
-            secure:true,
-            sameSite:"None"
+        const cookiesOption = {
+            httpOnly: true,
+            secure: true,
+            sameSite: "None"
         }
 
-        res.cookie('AccessToken',newAccessToken,cookiesOption)
+        res.cookie('AccessToken', newAccessToken, cookiesOption)
 
         return res.status(200)
-        .json({
-            message:"New Access token generated",
-            error:false,
-            success:true,
-            data:{
-                accessToken:newAccessToken
-            }
-        })
+            .json({
+                message: "New Access token generated",
+                error: false,
+                success: true,
+                data: {
+                    accessToken: newAccessToken
+                }
+            })
     }
     catch (error) {
         return res.status(500).json({
@@ -729,20 +726,20 @@ const refreshToken = async (req, res) => {
 }
 
 //get login user details
-const userDetailsController=async(req,res)=>{
-    try{
-       const userid=req.userId
+const userDetailsController = async (req, res) => {
+    try {
+        const userid = req.userId
 
-       const user=await User.findById(userid).select(
-        "-password -refersh_token"
-       )
-       return res.status(200)
-       .json({
-        message:'user details ',
-        data:user,
-        error:false,
-        success:true 
-       })
+        const user = await User.findById(userid).select(
+            "-password -refersh_token"
+        )
+        return res.status(200)
+            .json({
+                message: 'user details ',
+                data: user,
+                error: false,
+                success: true
+            })
 
     }
     catch (error) {
