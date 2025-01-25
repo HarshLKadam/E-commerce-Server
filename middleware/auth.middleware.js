@@ -5,13 +5,15 @@ const authentication = async (req, res, next) => {
 
         if (!token) {
             token=req.query.token
-            
-            // console.log('No token provided');
-            // return res.status(401).json({
-            //     message: 'Token not provided',
-            //     error: true,
-            //     success: false,
-            // });
+        }
+        
+        if(!token){
+             console.log('No token provided');
+            return res.status(401).json({
+                message: 'Token not provided',
+                error: true,
+                success: false,
+            });
         }
 
         console.log('Token:', token); 
