@@ -260,14 +260,30 @@ const logoutUserController = async (req, res) => {
 }
 
 var imageArray = [];
+const uploadToCloudinary = async (filePath) => {
+    try {
+        const options = {
+            use_filename: true,
+            unique_filename: false,
+            overwrite: false,
+            timeout: 120000, // Increase timeout to 120 seconds
+        };
+
+        const result = await cloudinary.uploader.upload(filePath, options);
+        return result;
+    } catch (error) {
+        console.error('Cloudinary upload error:', error);
+        return null;
+    }
+};
+
 const userAvatarController = async (req, res) => {
     try {
-        imageArray = []; 
-
+        imageArray = [];
         const userId = req.userId;
-        const avatarImage = req.files;
+        const avatarImages = req.files;
 
-        if (!avatarImage || avatarImage.length === 0) {
+        if (!avatarImages || avatarImages.length === 0) {
             return res.status(400).json({
                 message: 'No files received',
                 error: true,
@@ -275,10 +291,7 @@ const userAvatarController = async (req, res) => {
             });
         }
 
-        const user = await User.findOne({
-            _id: userId
-        });
-
+        const user = await User.findOne({ _id: userId });
         if (!user) {
             return res.status(500).json({
                 message: 'User not found while uploading image',
@@ -288,44 +301,31 @@ const userAvatarController = async (req, res) => {
         }
 
         const userAvatar = user.avatar;
-        const imgUrl = userAvatar;
-        const urlArray = imgUrl.split('/');
-        const image = urlArray[urlArray.length - 1];
-        const imageName = image.split('.')[0];
+        const urlArray = userAvatar ? userAvatar.split('/') : [];
+        const imageName = urlArray.length > 0 ? urlArray[urlArray.length - 1].split('.')[0] : null;
 
         if (imageName) {
             await cloudinary.uploader.destroy(imageName);
         }
 
-        const options = {
-            use_filename: true,
-            unique_filename: false,
-            overwrite: false,
-        };
-
-        for (let i = 0; i < avatarImage.length; i++) {
-            const result = await cloudinary.uploader.upload(avatarImage[i].path, options)
-                .catch(error => {
-                    console.error('Cloudinary upload error:', error);
-                    return null;
-                });
-
+        for (let i = 0; i < avatarImages.length; i++) {
+            const result = await uploadToCloudinary(avatarImages[i].path);
             if (result) {
                 imageArray.push(result.secure_url);
-
-                try {
-                    fs.unlinkSync(avatarImage[i].path); // Fixed incorrect reference
-                } catch (err) {
-                    console.error(`Failed to delete file: ${avatarImage[i].path}`, err); // Corrected file path reference
-                }
+                await fs.promises.unlink(avatarImages[i].path);  // Asynchronous file deletion
             } else {
-                console.log(`Failed to upload image: ${avatarImage[i].path}`); // Corrected file path reference
+                console.log(`Failed to upload image: ${avatarImages[i].path}`);
             }
         }
 
         if (imageArray.length > 0) {
+            // Save the Cloudinary URL to the user's avatar field
+            user.avatar = imageArray[0];  // Save only the first image URL
+            await user.save();
+
             return res.status(200).json({
                 images: imageArray,
+                message: 'Avatar updated successfully.',
             });
         } else {
             return res.status(500).json({
