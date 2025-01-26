@@ -266,7 +266,7 @@ const uploadToCloudinary = async (filePath) => {
             use_filename: true,
             unique_filename: false,
             overwrite: false,
-            timeout: 120000, // Increase timeout to 120 seconds
+            timeout: 360000, 
         };
 
         const result = await cloudinary.uploader.upload(filePath, options);
